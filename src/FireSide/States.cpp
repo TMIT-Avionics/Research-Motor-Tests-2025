@@ -25,7 +25,6 @@ bool BootCheck(id_t state)
 
   // Start RYLR Communication to GroundSide PCB
   RYLR.begin(RYLR_UART_BAUD);
-  Serial.begin(9600);
 
   // Wait for GroundSide Contact
   while (!RYLR.available())
@@ -153,11 +152,6 @@ bool ArmCheck(id_t state)
   digitalWrite(FIRE_PIN_B, STATUS_SAFE);
   digitalWrite(FIRE_PIN_C, STATUS_SAFE);
 
-  // Clear any Existing RYLR Buffer
-  // while (RYLR.available()) {
-  //   Serial.print(RYLR.readString());
-  // }
-
   // Wait for Command from GroundSide
   while (!RYLR.available())
   {
@@ -170,7 +164,6 @@ bool ArmCheck(id_t state)
 
   // Check if GroundSide Sent Correct Command
   
-
   if (command == "LAUNCH")
   {
     ArmLaunchTransition();
