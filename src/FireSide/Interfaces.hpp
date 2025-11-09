@@ -16,7 +16,7 @@
 #include <SD.h>
 
 
-// #### HW Configuration Declarations
+// #### STM32 L412KB Pin Configuration
 // Status Pin for Visual Output
 #define STATUS_PIN 2
 
@@ -29,7 +29,7 @@
 #define STATUS_SAFE LOW
 
 
-// Setup Serial Communication Interface
+// #### Serial Communication Interface Configuration
 // RYLR998 Hardware Interface
 // See REYAX RYLR998 Datasheet for UART Configuration
 #define RYLR_UART_BAUD 115200UL
@@ -74,7 +74,6 @@ inline void ParseRYLR(String &Buffer)
 }
 
 // Send Data to GroundSide via RYLR Module
-// Send Data to GroundSide via RYLR Module (with max 5 retries)
 inline void SendRYLR(const String &Data)
 {
   const uint8_t MAX_RETRIES = 5;
@@ -112,6 +111,8 @@ inline void SendRYLR(const String &Data)
   }
 }
 
+
+// #### STM32 L412KB ADC-DMA Configuration
 // Number of Concurrently Logged ADC Channels
 // 2 Channels Correspond to A0 & A1 on Pinout
 // 4 Channels Correspond to A0 to A3 on Pinout
