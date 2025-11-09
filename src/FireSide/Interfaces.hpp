@@ -127,7 +127,7 @@ inline void SendRYLR(const String &Data)
   // Wait for RYLR to Confirm Transmission
   while (!RYLR.available())
   {
-    delayMicroseconds(100UL);
+    delay(500UL);
   }
 
   // Parse RYLR Response to SEND Command

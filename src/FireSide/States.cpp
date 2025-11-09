@@ -107,7 +107,7 @@ bool SafeCheck(id_t state)
   SendRYLR("INPUT COMMAND");
   while (!RYLR.available())
   {
-    delay(100UL);
+    delay(500UL);
   }
 
   // Parse Command from GroundSide
@@ -157,7 +157,7 @@ bool ArmCheck(id_t state)
   SendRYLR("INPUT COMMAND");
   while (!RYLR.available())
   {
-    delay(100UL);
+    delay(500UL);
   }
 
   // Parse Command from GroundSide

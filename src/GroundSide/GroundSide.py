@@ -119,20 +119,25 @@ def SendRYLR(State : str):
       print('\n!!!! LAUNCH OTP Invalid. Safing FireSide!')
       OverrideResponse = True
 
-  # Issue Send AT Command
-  # See +SEND in REYAX AT RYLRX98 Commanding Datasheet
-  # https://reyax.com//products/RYLR998
-  RYLR.write('AT+SEND=0,'.encode())
-
   # Default to SAFE State if Above Checks Fail
   if OverrideResponse:
     print('\nSending SAFE Command')
+
+    # Issue Send AT Command
+    # See +SEND in REYAX AT RYLRX98 Commanding Datasheet
+    # https://reyax.com//products/RYLR998
+    RYLR.write('AT+SEND=0,'.encode())
 
     # Issue Payload Length
     # 4 Characters for SAFE Command
     # Complete Binary Command with Mandatory CRLF Line End
     RYLR.write('4,SAFE\r\n'.encode())
   else:
+    # Issue Send AT Command
+    # See +SEND in REYAX AT RYLRX98 Commanding Datasheet
+    # https://reyax.com//products/RYLR998
+    RYLR.write('AT+SEND=0,'.encode())
+
     # Issue Payload Length
     RYLR.write(str(len(State)).encode())
 
@@ -141,7 +146,7 @@ def SendRYLR(State : str):
 
   # Wait for RYLR to Confirm Transmission
   while not RYLR.in_waiting:
-    sleep(0.1)
+    sleep(0.5)
 
   # Parse RYLR Response to SEND Command
   # Ignore any Bad Bytes during Conversion
