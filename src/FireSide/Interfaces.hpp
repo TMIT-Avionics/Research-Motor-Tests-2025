@@ -74,26 +74,43 @@ inline void ParseRYLR(String &Buffer)
 }
 
 // Send Data to GroundSide via RYLR Module
+// Send Data to GroundSide via RYLR Module (with max 5 retries)
 inline void SendRYLR(const String &Data)
 {
-  // Issue Send AT Command
-  // See +SEND in REYAX AT RYLRX98 Commanding Datasheet
-  RYLR.print("AT+SEND=0,");
+  const uint8_t MAX_RETRIES = 5;
+  uint8_t attempt = 0;
 
-  // Issue Payload Length Including Header
-  RYLR.print(Data.length() + 4);
+  while (attempt < MAX_RETRIES)
+  {
+    // ---- Send Command ----
+    RYLR.print("AT+SEND=0,");
+    RYLR.print(Data.length() + 4);
+    RYLR.print(",FS> ");
+    RYLR.print(Data);
+    RYLR.print("\r\n");
 
-  // Issue FireSide PCB Header
-  RYLR.print(",FS> ");
+    // ---- Wait for Module Reply ----
+    unsigned long startTime = millis();
+    while (!RYLR.available() && (millis() - startTime < 1000UL))
+    {
+      delayMicroseconds(100UL);
+    }
 
-  // Issue Data and Complete Command with Line End
-  // CRLF Line End is Mandatory
-  RYLR.print(Data);
-  RYLR.print("\r\n");
+    // ---- Read Reply ----
+    if (RYLR.available())
+    {
+      String reply = RYLR.readString();
+      if (reply.indexOf("OK") != -1)
+      {
+        return; // ✅ Success
+      }
+    }
 
-  return;
+    // ---- Retry ----
+    attempt++;
+    delay(50); // small gap before retry
+  }
 }
-
 
 // Number of Concurrently Logged ADC Channels
 // 2 Channels Correspond to A0 & A1 on Pinout
