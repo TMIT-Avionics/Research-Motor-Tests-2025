@@ -163,6 +163,7 @@ bool ArmCheck(id_t state)
   ParseRYLR(command);
 
   // Check if GroundSide Sent Correct Command
+  
   if (command == "LAUNCH")
   {
     ArmLaunchTransition();
