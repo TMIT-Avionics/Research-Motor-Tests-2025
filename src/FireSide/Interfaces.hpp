@@ -108,39 +108,42 @@ inline void ParseRYLR(String &Buffer)
 // Send Data to GroundSide via RYLR Module
 inline void SendRYLR(const String &Data)
 {
-  const uint8_t MAX_RETRIES = 5;
-  uint8_t attempt = 0;
+  // Issue Send AT Command
+  // See +SEND in REYAX AT RYLRX98 Commanding Datasheet
+  // https://reyax.com//products/RYLR998
+  RYLR.print("AT+SEND=0,");
 
-  while (attempt < MAX_RETRIES)
+  // Issue Payload Length Including Header
+  RYLR.print(Data.length() + 4);
+
+  // Issue FireSide PCB Header
+  RYLR.print(",FS> ");
+
+  // Issue Data and Complete Command with Line End
+  // CRLF Line End is Mandatory
+  RYLR.print(Data);
+  RYLR.print("\r\n");
+
+  // Wait for RYLR to Confirm Transmission
+  while (!RYLR.available())
   {
-    // ---- Send Command ----
-    RYLR.print("AT+SEND=0,");
-    RYLR.print(Data.length() + 4);
-    RYLR.print(",FS> ");
-    RYLR.print(Data);
-    RYLR.print("\r\n");
-
-    // ---- Wait for Module Reply ----
-    unsigned long startTime = millis();
-    while (!RYLR.available() && (millis() - startTime < 1000UL))
-    {
-      delayMicroseconds(100UL);
-    }
-
-    // ---- Read Reply ----
-    if (RYLR.available())
-    {
-      String reply = RYLR.readString();
-      if (reply.indexOf("OK") != -1)
-      {
-        return; // ✅ Success
-      }
-    }
-
-    // ---- Retry ----
-    attempt++;
-    delay(50); // small gap before retry
+    delayMicroseconds(100UL);
   }
+
+  // Parse RYLR Response to SEND Command
+  String response = RYLR.readStringUntil('\n');
+  response.trim();
+
+  // Retry if Transmission Fails
+  // See +SEND in REYAX AT RYLRX98 Commanding Datasheet
+  // https://reyax.com//products/RYLR998
+  if (response != "+OK")
+  {
+    // Recursive Call to Restart Send Sequence
+    SendRYLR(Data);
+  }
+
+  return;
 }
 
 
