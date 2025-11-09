@@ -103,7 +103,8 @@ bool SafeCheck(id_t state)
   digitalWrite(FIRE_PIN_B, STATUS_SAFE);
   digitalWrite(FIRE_PIN_C, STATUS_SAFE);
 
-  // Wait for GroundSide Command
+  // Request for GroundSide Command
+  SendRYLR("INPUT COMMAND");
   while (!RYLR.available())
   {
     delay(100UL);
@@ -152,7 +153,8 @@ bool ArmCheck(id_t state)
   digitalWrite(FIRE_PIN_B, STATUS_SAFE);
   digitalWrite(FIRE_PIN_C, STATUS_SAFE);
 
-  // Wait for Command from GroundSide
+  // Request for Command from GroundSide
+  SendRYLR("INPUT COMMAND");
   while (!RYLR.available())
   {
     delay(100UL);
@@ -163,7 +165,6 @@ bool ArmCheck(id_t state)
   ParseRYLR(command);
 
   // Check if GroundSide Sent Correct Command
-  
   if (command == "LAUNCH")
   {
     ArmLaunchTransition();
@@ -360,7 +361,8 @@ bool FailureCheck(id_t state)
   // Check Analog Inputs
   ReadoutAnalogPins();
 
-  // Wait for GroundSide Command
+  // Request for GroundSide Command
+  SendRYLR("INPUT COMMAND");
   while (!RYLR.available())
   {
     delay(500UL);
