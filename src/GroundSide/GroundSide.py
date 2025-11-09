@@ -11,7 +11,7 @@ from serial.tools.list_ports import comports
 
 # Launch Confirmation Sequence Generation
 from secrets import choice
-from string import ascii_letters, digits, punctuation
+from string import digits
 
 # Graceful Script Termination
 from sys import exit
@@ -43,16 +43,30 @@ except IndexError:
   input('!!!! Press Any Key to Exit')
   exit()
 
+# Notify User of Baud Rate Defaults
+# See REYAX RYLR998 Datasheet for UART Configuration Defaults
+print('\n Default Baud Rate for RYLR998: 115200')
+# See REYAX RYLR993 Datasheet for UART Configuration Defaults
+print('Default Baud Rate for RYLR993: 9600')
+
+# Ask User for Port Baud Rate and Validate Input
+RYLR_UART_BAUD = input('Enter Port Baud Rate: ')
+try:
+  RYLR_UART_BAUD = int(RYLR_UART_BAUD)
+except ValueError:
+  # Notify User of Invalid Input
+  print('\n!!!! Invalid Port Baud Rate Entered: ' + RYLR_UART_BAUD)
+  input('!!!! Press Any Key to Exit')
+  exit()
+
 # Notify User of Serial Startup
 print('\nStarting Serial on COM' + PortID)
 
-# Create and Configure Serial Object for RYLR998
-# See REYAX RYLR998 Datasheet for UART Configuration Defaults
-RYLR_UART_BAUD = 9600
+# Create and Configure Serial Object
 RYLR = Serial(
   port='COM' + PortID,
   baudrate=RYLR_UART_BAUD,
-  timeout=0.1
+  timeout=0.5
 )
 
 
@@ -96,8 +110,7 @@ def SendRYLR(State : str):
   # Confirm Entry into ARM State
   if State == 'ARM':
     # Generate and Output OPT for User
-    OTP : str = ''.join(choice( digits
-    ) for i in range(4))
+    OTP : str = ''.join(choice(digits) for i in range(6))
 
     print('\nOTP for ARM State Transition: ' + OTP)
 
@@ -109,8 +122,7 @@ def SendRYLR(State : str):
   # Confirm Entry into LAUNCH State
   if State == 'LAUNCH':
     # Generate and Output OPT for User
-    OTP : str = ''.join(choice( digits
-    ) for i in range(4))
+    OTP : str = ''.join(choice(digits) for i in range(6))
 
     print('\nOTP for LAUNCH State Transition: ' + OTP)
 
