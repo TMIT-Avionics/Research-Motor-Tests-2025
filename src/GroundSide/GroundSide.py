@@ -167,10 +167,9 @@ def SendRYLR(State : str):
   # Check Response & Retry if Transmission Fails
   # See +SEND in REYAX AT RYLRX98 Commanding Datasheet
   # https://reyax.com//products/RYLR998
-  response = response.strip()
   if 'OK' not in response:
     # Notify User of Transmission Failure
-    print(f'\n!!!! RYLR Commanding Failed. Response: {response}\n')
+    print(f'\n!!!! RYLR Commanding Failed. Response: {response.strip()}\n')
 
   return
 
