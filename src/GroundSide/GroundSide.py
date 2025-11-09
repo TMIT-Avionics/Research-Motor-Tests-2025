@@ -5,6 +5,8 @@
 # Serial and Delays for RYLR Communication
 from serial import Serial
 from time import sleep
+import time
+import msvcrt
 
 # Serial COM Port Selection
 from serial.tools.list_ports import comports
@@ -48,7 +50,7 @@ print('\nStarting Serial on COM' + PortID)
 
 # Create and Configure Serial Object for RYLR998
 # See REYAX RYLR998 Datasheet for UART Configuration Defaults
-RYLR_UART_BAUD = 115200
+RYLR_UART_BAUD = 9600
 RYLR = Serial(
   port='COM' + PortID,
   baudrate=RYLR_UART_BAUD,
@@ -63,16 +65,29 @@ def ParseRYLR() -> str:
     # Return Blank Buffer
     return str('\n')
 
-  # Load Incoming Binary Data
-  parsed = RYLR.read_until(b'\n').decode()
+  # 1. READ: Load Incoming Binary Data
+  # 2. DECODE: Decode from bytes to string, IGNORING any bad bytes
+  # 3. STRIP: Remove whitespace (like \r\n)
+  parsed = RYLR.read_until(b'\n').decode('utf-8', errors='ignore').strip()
 
-  # See +RCV in REYAX AT RYLRX98 Commanding Datasheet
-  # Extract Data in 3rd Comma Separated Field
-  parsed = parsed.split(',', maxsplit=4)[2]
-
-  # Strip and Return Parsed Data
-  return parsed.strip()
-
+  # Check if this is an actual Data Reception message
+  if parsed.startswith('+RCV='):
+    # Format: +RCV=<Address>,<Length>,<Data>,<RSSI>,<SNR>
+    try:
+      # Extract Data in 3rd Comma Separated Field
+      data = parsed.split(',', maxsplit=4)[2]
+      return data  # Return just the payload
+    except IndexError:
+      # This could happen if the +RCV packet is malformed
+      print(f"!!!! Malformed +RCV packet: {parsed}")
+      return str('\n')
+  
+  # If it's not a data packet, it's an AT response (+OK, +ERR, etc.)
+  # Return the whole line so it gets printed for debugging.
+  if parsed: # Only return if it's not an empty line
+    return "-> " + parsed # The "->" helps you see AT responses
+  
+  return str('\n') # Return blank for empty/unhandled lines
 # Sends State Commands to FireSide PCB via RYLR module
 def SendRYLR(State : str):
   # Check for Invalid Commands or Switches
@@ -86,9 +101,8 @@ def SendRYLR(State : str):
   # Confirm Entry into ARM State
   if State == 'ARM':
     # Generate and Output OPT for User
-    OTP : str = ''.join(choice(
-      ascii_letters + digits + punctuation
-    ) for i in range(8))
+    OTP : str = ''.join(choice( digits
+    ) for i in range(4))
 
     print('\nOTP for ARM State Transition: ' + OTP)
 
@@ -100,9 +114,8 @@ def SendRYLR(State : str):
   # Confirm Entry into LAUNCH State
   if State == 'LAUNCH':
     # Generate and Output OPT for User
-    OTP : str = ''.join(choice(
-      ascii_letters + digits + punctuation
-    ) for i in range(8))
+    OTP : str = ''.join(choice( digits
+    ) for i in range(4))
 
     print('\nOTP for LAUNCH State Transition: ' + OTP)
 
@@ -138,7 +151,7 @@ print('\nEstablishing FireSide Link')
 
 # Prompt User for FireSide PCB Initial State
 # Send the Initial State
-SendRYLR(input('Choose Initial State: SAFE || CONVERT'))
+SendRYLR(input('Choose Initial State (SAFE || CONVERT): '))
 
 # Wait Until FireSide Begins Response to State Command
 while not RYLR.in_waiting:
@@ -146,19 +159,76 @@ while not RYLR.in_waiting:
 
 print('\nFireSide Link Acquired')
 
+#### Start Non-Blocking Main Loop
+input_buffer = ""
+prompt = "> "
+print(prompt, end="", flush=True) # Print the first prompt
 
 #### Start RYLR Communication Loop
 while True:
-  # Check for Incoming Data from FireSide PCB
-  # Parse and Print Data to the Terminal
-  while RYLR.in_waiting:
-    # Load and Display Line
-    print(ParseRYLR())
+    try:
+        # --- 1. Check for Serial Data (Receiving) ---
+        # This is non-blocking
+        while RYLR.in_waiting:
+            line = ParseRYLR()
+            if line and line.strip():
+                
+                # --- This block handles printing data without messing up your typing ---
+                # 1. Clear the current line you're typing on
+                print(f"\r{' ' * (len(prompt) + len(input_buffer))}\r", end="") 
+                
+                # 2. Print the received message on its own line
+                print(f"{line}")
+                
+                # 3. Re-print the prompt and whatever you had typed so far
+                print(f"{prompt}{input_buffer}", end="", flush=True)
 
-  # Check for Incoming Commands from the Terminal
-  # Send Input Command
-  SendRYLR(input())
 
-  # Wait Until FireSide Begins Response to Sent Command
-  while not RYLR.in_waiting:
-    sleep(0.5)
+        # --- 2. Check for Keyboard Data (Sending) ---
+        # This is non-blocking
+        if msvcrt.kbhit():
+            # A key has been pressed, get it
+            char_bytes = msvcrt.getch()
+
+            try:
+                char = char_bytes.decode('utf-8')
+
+                # Check if the user pressed Enter
+                if char == '\r': 
+                    print() # Move to the next line
+                    
+                    # Only send if the buffer isn't empty
+                    if input_buffer:
+                        SendRYLR(input_buffer)
+                    
+                    # Reset the buffer for the next command
+                    input_buffer = ""
+                    print(prompt, end="", flush=True) # Print new prompt
+
+                # Check if the user pressed Backspace
+                elif char == '\b': 
+                    if len(input_buffer) > 0:
+                        # Remove last char from buffer and screen
+                        input_buffer = input_buffer[:-1]
+                        print('\b \b', end="", flush=True) 
+                
+                # It's a regular character
+                else: 
+                    input_buffer += char
+                    print(char, end="", flush=True) # Echo the character to the screen
+
+            except UnicodeDecodeError:
+                # User pressed a special key (like an arrow or F-key)
+                # We just ignore it in this simple version
+                pass
+
+        # --- 3. Sleep ---
+        # This is CRITICAL to prevent 100% CPU usage
+        # A small sleep gives the OS time to breathe.
+        sleep(0.01) # Sleep for 10 milliseconds
+
+    except KeyboardInterrupt:
+        # Allow exiting with Ctrl+C
+        print("\nExiting...")
+        RYLR.close()
+        exit()
