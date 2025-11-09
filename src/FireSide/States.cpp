@@ -104,7 +104,7 @@ bool SafeCheck(id_t state)
   digitalWrite(FIRE_PIN_C, STATUS_SAFE);
 
   // Request for GroundSide Command
-  SendRYLR("INPUT COMMAND");
+  SendRYLR("REQUEST COMMAND");
   while (!RYLR.available())
   {
     delay(500UL);
@@ -154,7 +154,7 @@ bool ArmCheck(id_t state)
   digitalWrite(FIRE_PIN_C, STATUS_SAFE);
 
   // Request for Command from GroundSide
-  SendRYLR("INPUT COMMAND");
+  SendRYLR("REQUEST COMMAND");
   while (!RYLR.available())
   {
     delay(500UL);
@@ -362,7 +362,7 @@ bool FailureCheck(id_t state)
   ReadoutAnalogPins();
 
   // Request for GroundSide Command
-  SendRYLR("INPUT COMMAND");
+  SendRYLR("REQUEST COMMAND");
   while (!RYLR.available())
   {
     delay(500UL);

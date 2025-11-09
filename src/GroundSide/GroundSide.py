@@ -73,7 +73,7 @@ def ParseRYLR() -> str:
   # https://reyax.com//products/RYLR998
   if parsed.startswith('+RCV='):
     if parsed.count(',') != 4:
-      # 5 Fields Expected in Valid RCV Command
+      # 4 Commas Expected in Valid RCV Command
       return f'\n!!!! Malformed +RCV Response: {parsed}\n'
     else:
       # Extract & Return the Data in 3rd Comma Separated Field
@@ -156,9 +156,9 @@ def SendRYLR(State : str):
   # See +SEND in REYAX AT RYLRX98 Commanding Datasheet
   # https://reyax.com//products/RYLR998
   response = response.strip()
-  if response != '+OK':
-    # Recursive Call to Restart Sequence
-    SendRYLR(State)
+  if 'OK' not in response:
+    # Notify User of Transmission Failure
+    print(f'\n!!!! RYLR Commanding Failed. Response: {response}\n')
 
   return
 
@@ -182,21 +182,26 @@ print('FireSide Link Acquired\n')
 print('Starting RYLR Communication Loop with FireSide')
 print('Ctrl+C to Exit Communication Loop\n')
 try:
-  while True:
-    # Initialise Single Line Buffer for RYLR Data
-    buffer = ''
+  # Initialise Single Line Buffers for RYLR Data
+  RXBuffer = ''
+  TXBuffer = ''
 
+  while True:
     # Check for Incoming Data from FireSide PCB
     # Parse and Print Data to the Terminal
     while RYLR.in_waiting:
       # Load and Display Line
-      buffer = ParseRYLR()
-      print(buffer)
+      RXBuffer = ParseRYLR()
+      print(RXBuffer)
 
     # Check Last Line for Request for Commands from FireSide PCB
-    if buffer == 'FS> INPUT COMMAND':
-      # Block for Input and Send Command
-      SendRYLR(input())
+    if RXBuffer == 'FS> REQUEST COMMAND':
+      # Block for Input and Fill Line Buffer
+      TXBuffer = input('Enter Command: ')
+
+      # Send Command while Ignoring New Lines
+      if TXBuffer and TXBuffer.strip():
+        SendRYLR(TXBuffer)
 
       # Wait Until FireSide PCB Begins Response to Sent Command
       while not RYLR.in_waiting:
