@@ -60,7 +60,6 @@ RYLR = Serial(
 
 #### Define Interface Layer Functions to RYLR998 Module
 # Parses Incoming Data from FireSide PCB via RYLR module
-# Parses Incoming Data from FireSide PCB via RYLR module
 def ParseRYLR() -> str:
   if not RYLR.in_waiting:
     # Return Blank Buffer
@@ -127,7 +126,7 @@ def SendRYLR(State : str):
 
   # Issue Send AT Command
   # See +SEND in REYAX AT RYLRX98 Commanding Datasheet
-  RYLR.write('AT+SEND=42,'.encode())
+  RYLR.write('AT+SEND=0,'.encode())
 
   # Default to SAFE State if Above Checks Fail
   if OverrideResponse:
@@ -152,7 +151,7 @@ print('\nEstablishing FireSide Link')
 
 # Prompt User for FireSide PCB Initial State
 # Send the Initial State
-SendRYLR(input('Choose Initial State: SAFE || CONVERT'))
+SendRYLR(input('Choose Initial State (SAFE || CONVERT): '))
 
 # Wait Until FireSide Begins Response to State Command
 while not RYLR.in_waiting:
@@ -161,9 +160,6 @@ while not RYLR.in_waiting:
 print('\nFireSide Link Acquired')
 
 #### Start Non-Blocking Main Loop
-print("\nStarting non-blocking loop. Type commands and press Enter.")
-print("Real-time data will now appear as it arrives.")
-
 input_buffer = ""
 prompt = "> "
 print(prompt, end="", flush=True) # Print the first prompt
