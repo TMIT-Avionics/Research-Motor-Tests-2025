@@ -131,6 +131,15 @@ def SendRYLR(State : str):
       print('\n!!!! LAUNCH OTP Invalid. Safing FireSide!')
       OverrideResponse = True
 
+  # Clear RYLR Serial Write Buffer
+  # Wait for Response from RYLR
+  RYLR.flush()
+  sleep(0.5)
+
+  # Clear Existing Data in RYLR Serial Read Buffer
+  while RYLR.in_waiting:
+    RYLR.read()
+
   # Default to SAFE State if Above Checks Fail
   if OverrideResponse:
     print('\nSending SAFE Command')
