@@ -430,7 +430,9 @@ void LogBuffersinLoop()
   }
 
   // Start Logging Loop
-  // Stop Loop on Receipt of Newline Character
+  // Stop Loop on Receipt of Initial '+' of AT Command
+  // See +RCV in REYAX AT RYLRX98 Commanding Datasheet
+  // https://reyax.com//products/RYLR998
   do {
     // Check if DMA Handler Aborted
     if (SDWriteError)
@@ -465,7 +467,7 @@ void LogBuffersinLoop()
       // Reset SD Card Write Flag
       SDWriting = false;
     }
-  } while (RYLR.read() != '\n');
+  } while (RYLR.read() != '+');
 
   // Close File on SD Card After Logging Loop
   LogFile.close();
