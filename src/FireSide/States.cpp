@@ -216,8 +216,9 @@ bool LaunchCheck(id_t state)
   // Pause FireSide RYLR Communications
   // There is not Enough CPU to Log and Communicate
   SendRYLR("RADIO SILENCE FIRESIDE");
-  SendRYLR("SEND ANY COMMAND TO STOP LOGGING");
   SendRYLR("FIRING IGNITERS");
+  SendRYLR("SEND ANY COMMAND TO STOP LOGGING");
+  SendRYLR("REQUEST COMMAND");
 
   // Any RYLR Input After This Point Interrupts Logging
   TriggerLogging();
