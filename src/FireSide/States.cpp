@@ -103,10 +103,11 @@ bool SafeCheck(id_t state)
   digitalWrite(FIRE_PIN_B, STATUS_SAFE);
   digitalWrite(FIRE_PIN_C, STATUS_SAFE);
 
-  // Wait for GroundSide Command
+  // Request for GroundSide Command
+  SendRYLR("REQUEST COMMAND");
   while (!RYLR.available())
   {
-    delay(100UL);
+    delay(500UL);
   }
 
   // Parse Command from GroundSide
@@ -152,10 +153,11 @@ bool ArmCheck(id_t state)
   digitalWrite(FIRE_PIN_B, STATUS_SAFE);
   digitalWrite(FIRE_PIN_C, STATUS_SAFE);
 
-  // Wait for Command from GroundSide
+  // Request for Command from GroundSide
+  SendRYLR("REQUEST COMMAND");
   while (!RYLR.available())
   {
-    delay(100UL);
+    delay(500UL);
   }
 
   // Parse Command from GroundSide
@@ -163,7 +165,6 @@ bool ArmCheck(id_t state)
   ParseRYLR(command);
 
   // Check if GroundSide Sent Correct Command
-  
   if (command == "LAUNCH")
   {
     ArmLaunchTransition();
@@ -215,8 +216,9 @@ bool LaunchCheck(id_t state)
   // Pause FireSide RYLR Communications
   // There is not Enough CPU to Log and Communicate
   SendRYLR("RADIO SILENCE FIRESIDE");
-  SendRYLR("SEND ANY COMMAND TO STOP LOGGING");
   SendRYLR("FIRING IGNITERS");
+  SendRYLR("SEND ANY COMMAND TO STOP LOGGING");
+  SendRYLR("REQUEST COMMAND");
 
   // Any RYLR Input After This Point Interrupts Logging
   TriggerLogging();
@@ -360,7 +362,8 @@ bool FailureCheck(id_t state)
   // Check Analog Inputs
   ReadoutAnalogPins();
 
-  // Wait for GroundSide Command
+  // Request for GroundSide Command
+  SendRYLR("REQUEST COMMAND");
   while (!RYLR.available())
   {
     delay(500UL);

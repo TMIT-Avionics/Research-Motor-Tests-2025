@@ -16,7 +16,7 @@
 #include <SD.h>
 
 
-// #### HW Configuration Declarations
+// #### STM32 L412KB Pin Configuration
 // Status Pin for Visual Output
 #define STATUS_PIN 2
 
@@ -29,7 +29,7 @@
 #define STATUS_SAFE LOW
 
 
-// Setup Serial Communication Interface
+// #### Serial Communication Interface Configuration
 // RYLR998 Hardware Interface
 // See REYAX RYLR998 Datasheet for UART Configuration
 #define RYLR_UART_BAUD 115200UL
@@ -59,7 +59,39 @@ inline void ParseRYLR(String &Buffer)
   // Load Incoming Data
   String parsed = RYLR.readStringUntil('\n');
 
+  // Check if Data is from GroundSide
   // See +RCV in REYAX AT RYLRX98 Commanding Datasheet
+  // https://reyax.com//products/RYLR998
+  if (parsed.indexOf("+RCV=") == -1)
+  {
+    // Return Blank
+    Buffer = '\n';
+    return;
+  }
+
+  // Check Data Format Validity
+  // Count Number of Commas in Parsed Data
+  short fields = 1;
+  for (short i = 0; i < parsed.length(); i++)
+  {
+    if (parsed[i] == ',')
+    {
+      fields += 1;
+    }
+  }
+
+  // Ignore Parsed Data if RCV Command is Malformed
+  // Valid RCV Commands have 5 Fields
+  if (fields != 5)
+  {
+    // Return Blank
+    Buffer = '\n';
+    return;
+  }
+
+  // Extract Data from Parsed String
+  // See +RCV in REYAX AT RYLRX98 Commanding Datasheet
+  // https://reyax.com//products/RYLR998
   // Remove Data from Last 2 Fields
   parsed.remove(parsed.lastIndexOf(','));
   parsed.remove(parsed.lastIndexOf(','));
@@ -74,44 +106,48 @@ inline void ParseRYLR(String &Buffer)
 }
 
 // Send Data to GroundSide via RYLR Module
-// Send Data to GroundSide via RYLR Module (with max 5 retries)
 inline void SendRYLR(const String &Data)
 {
-  const uint8_t MAX_RETRIES = 5;
-  uint8_t attempt = 0;
+  // Issue Send AT Command
+  // See +SEND in REYAX AT RYLRX98 Commanding Datasheet
+  // https://reyax.com//products/RYLR998
+  RYLR.print("AT+SEND=0,");
 
-  while (attempt < MAX_RETRIES)
+  // Issue Payload Length Including Header
+  RYLR.print(Data.length() + 4);
+
+  // Issue FireSide PCB Header
+  RYLR.print(",FS> ");
+
+  // Issue Data and Complete Command with Line End
+  // CRLF Line End is Mandatory
+  RYLR.print(Data);
+  RYLR.print("\r\n");
+
+  // Wait for RYLR to Confirm Transmission
+  while (!RYLR.available())
   {
-    // ---- Send Command ----
-    RYLR.print("AT+SEND=0,");
-    RYLR.print(Data.length() + 4);
-    RYLR.print(",FS> ");
-    RYLR.print(Data);
-    RYLR.print("\r\n");
-
-    // ---- Wait for Module Reply ----
-    unsigned long startTime = millis();
-    while (!RYLR.available() && (millis() - startTime < 1000UL))
-    {
-      delayMicroseconds(100UL);
-    }
-
-    // ---- Read Reply ----
-    if (RYLR.available())
-    {
-      String reply = RYLR.readString();
-      if (reply.indexOf("OK") != -1)
-      {
-        return; // ✅ Success
-      }
-    }
-
-    // ---- Retry ----
-    attempt++;
-    delay(50); // small gap before retry
+    delay(500UL);
   }
+
+  // Parse RYLR Response to SEND Command
+  String response = RYLR.readStringUntil('\n');
+  response.trim();
+
+  // Retry if Transmission Fails
+  // See +SEND in REYAX AT RYLRX98 Commanding Datasheet
+  // https://reyax.com//products/RYLR998
+  if (response != "+OK")
+  {
+    // Recursive Call to Restart Send Sequence
+    SendRYLR(Data);
+  }
+
+  return;
 }
 
+
+// #### STM32 L412KB ADC-DMA Configuration
 // Number of Concurrently Logged ADC Channels
 // 2 Channels Correspond to A0 & A1 on Pinout
 // 4 Channels Correspond to A0 to A3 on Pinout
