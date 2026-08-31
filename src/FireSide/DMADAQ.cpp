@@ -21,7 +21,7 @@ uint16_t ReadoutBuffer[ADC_PARALLEL_CHANNELS];
 
 // ADC DMA Buffer Block Length
 // Align Block to SD Card 512 Byte Boundary to Optimise IO
-#define ADC_DMA_BLOCKLEN (ADC_PARALLEL_CHANNELS * 512)
+#define ADC_DMA_BLOCKLEN (ADC_PARALLEL_CHANNELS * 1024)
 
 // Circular DMA Buffer Data Storage Structure
 // By Convention, Circular DMA Buffers are 2 Blocks Long
@@ -105,19 +105,18 @@ extern "C" void DMA1_Channel1_IRQHandler()
 // Successful Block One DMA Transfer Completion Callback
 void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef *hadc)
 {
-  // Check If Previous Block is Still Being Written
-  // Otherwise Check for Logging Finish Signal
-  if (SDWriting || SDLogStop)
+  // If finish signal received, stop DMA entirely
+  if (SDLogStop)
   {
-    // Stop ADC Conversion
     HAL_ADC_Stop_DMA(&hadc1);
+    return;
+  }
 
-    // If Previous Block Write is Incomplete
-    if (SDWriting)
-    {
-      // Signal SD Buffer Write Error
-      SDWriteError = true;
-    }
+  // If SD card is still writing, an overrun occurred
+  if (SDWriting)
+  {
+    SDWriteError = true; // Flag the dropped frame, but DO NOT stop the ADC
+    return;
   }
 
   // Reset Block Write Pointer to 1st Block in the Circular Buffer
@@ -131,19 +130,18 @@ void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef *hadc)
 // Successful Block Two DMA Transfer Completion Callback
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
-  // Check If Previous Block is Still Being Written
-  // Otherwise Check for Logging Finish Signal
-  if (SDWriting || SDLogStop)
+  // If finish signal received, stop DMA entirely
+  if (SDLogStop)
   {
-    // Stop ADC Conversion
     HAL_ADC_Stop_DMA(&hadc1);
+    return;
+  }
 
-    // If Previous Block Write is Incomplete
-    if (SDWriting)
-    {
-      // Signal SD Buffer Write Error
-      SDWriteError = true;
-    }
+  // If SD card is still writing, an overrun occurred
+  if (SDWriting)
+  {
+    SDWriteError = true; // Flag the dropped frame, but DO NOT stop the ADC
+    return;
   }
 
   // Reset Block Write Pointer to 2nd Block in the Circular Buffer
@@ -157,6 +155,12 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 // ADC Conversion Error Callback
 void HAL_ADC_ErrorCallback(ADC_HandleTypeDef *hadc)
 {
+  if (hadc->ErrorCode & HAL_ADC_ERROR_OVR)
+  {
+    __HAL_ADC_CLEAR_FLAG(hadc, ADC_FLAG_OVR);
+    return;
+  }
+
   UNUSED(hadc);
 
   ErrorBlink(ERR_HAL_ADC);
@@ -196,6 +200,8 @@ void ConfigureADC(bool Continuous)
 
   // Set Conversion Trigger to Internal Software Only
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+
+  hadc1.Init.Overrun = ADC_OVR_DATA_OVERWRITTEN;
 
   // Specify How the ADC Should Scan the Input Pins
   // NOTE: DMA Should Not Be Used for Simple Pin Readout to Avoid Conflicts
@@ -435,14 +441,11 @@ void LogBuffersinLoop()
   // See +RCV in REYAX AT RYLRX93 Commanding Datasheet
   // https://reyax.com//products/RYLR993
   do {
-    // Check if DMA Handler Aborted
+    // Check if DMA Handler Aborted due to missed block
     if (SDWriteError)
     {
-      // Close File on SD Card After Logging Loop
-      LogFile.close();
-
-      // Indicate SD Write Buffer Error on LED
-      ErrorBlink(ERR_SD_BUFF);
+      // Reset the error flag to keep the avionics logging data
+      SDWriteError = false;
     }
 
     // Check if SD Buffer Block is Ready For Write
