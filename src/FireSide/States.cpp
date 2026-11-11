@@ -151,6 +151,9 @@ void SafeArmTransition()
   {
     ErrorBlink(ERR_SD_FILE);
   }
+  ConfigureLogging();
+  SendRYLR("LOGGING CONFIGURED");
+  SendRYLR("BINARY LOGGER GO");
 
   SendRYLR("FIRESIDE ARMED");
 }
@@ -212,8 +215,8 @@ void ArmLaunchTransition()
   SendRYLR("ADC GO");
 
   // Configure Logging And Get Filename
-  ConfigureLogging();
-  SendRYLR("BINARY LOGGER GO");
+  // ConfigureLogging();
+  // SendRYLR("BINARY LOGGER GO");
 }
 
 
