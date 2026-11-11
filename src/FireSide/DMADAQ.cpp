@@ -21,14 +21,7 @@ uint16_t ReadoutBuffer[ADC_PARALLEL_CHANNELS];
 
 // ADC DMA Buffer Block Length
 // Align Block to SD Card 512 Byte Boundary to Optimise IO
-#define ADC_DMA_BLOCKLEN (ADC_PARALLEL_CHANNELS * 1024)
-#define LOG_SECONDS 120UL
-#define FRAME_PERIOD_US 283UL
-#define LOG_BLOCK_BYTES  (ADC_DMA_BLOCKLEN * sizeof(uint16_t))
-#define LOG_RECORD_BYTES (LOG_BLOCK_BYTES + sizeof(uint32_t))
-#define PREALLOC_BLOCKS \
-  ((LOG_SECONDS * 1000000UL) / ((ADC_DMA_BLOCKLEN / ADC_PARALLEL_CHANNELS) * FRAME_PERIOD_US))
-
+#define ADC_DMA_BLOCKLEN (ADC_PARALLEL_CHANNELS * 512)
 
 // Circular DMA Buffer Data Storage Structure
 // By Convention, Circular DMA Buffers are 2 Blocks Long
@@ -50,9 +43,6 @@ volatile bool SDLogStop;
 
 // Boolean to Signal SD Write Buffer Error
 volatile bool SDWriteError;
-
-volatile uint32_t MaxWriteUs = 0;
-volatile uint32_t BlocksWritten = 0;
 
 
 // ADC and DMA Interface using STM32 HAL
@@ -136,7 +126,6 @@ void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef *hadc)
   // Update Block Write Status for Logging Routine
   SDWriteBlockReady = true;
 }
-
 
 
 // Successful Block Two DMA Transfer Completion Callback
@@ -378,110 +367,26 @@ String GetLogfileName(bool Initialise)
 
 
 // Binary Logfile and Initial DMA Buffer Configuration
-// void ConfigureLogging()
-// {
-  // Initialise Circular Buffer and Write Block Pointer
-  // Log Data in 1st Block Initially
-  // SDWriteBlockStart = DMABuffer;
-  // memset(SDWriteBlockStart, 0X00, sizeof(DMABuffer));
-
-  // Initialise Current Block Status for SD Card Write
-  // SDWriteBlockReady = false;
-
-  // Initialise SD Logging Stop Signal Boolean
-  // SDLogStop = false;
-
-  // Initialise SD Write Buffer Error Signal Boolean
-  // SDWriteError = false;
-
-  // Select a Fresh Filename for the Binary Logfile
-  // GetLogfileName(true);
-
-  // File LogFile = SD.open(GetLogfileName(), FILE_WRITE);
-
-  // Abort if File is not Open
-  // if (!LogFile) {
-    // ErrorBlink(ERR_SD_FILE);
-  // }
-
-  // LogFile.write((const uint8_t *)DMABuffer, sizeof(DMABuffer));
-  // LogFile.close();
-
-
-// }
 void ConfigureLogging()
 {
+  // Initialise Circular Buffer and Write Block Pointer
+  // Log Data in 1st Block Initially
   SDWriteBlockStart = DMABuffer;
-  memset(DMABuffer, 0, sizeof(DMABuffer));
+  memset(SDWriteBlockStart, 0X00, sizeof(DMABuffer));
 
+  // Initialise Current Block Status for SD Card Write
   SDWriteBlockReady = false;
-  SDWriting = false;
+
+  // Initialise SD Logging Stop Signal Boolean
   SDLogStop = false;
+
+  // Initialise SD Write Buffer Error Signal Boolean
   SDWriteError = false;
-  MaxWriteUs = 0;
-  BlocksWritten = 0;
 
-  const String name = GetLogfileName(true);
-  const uint32_t totalBytes = (uint32_t)PREALLOC_BLOCKS * LOG_RECORD_BYTES;
-  const uint32_t startMs = millis();
-
-  // Allocate the full logging window now, while still in ARM.
-  File LogFile = SD.open(name, FILE_WRITE);
-  if (!LogFile)
-  {
-    ErrorBlink(ERR_SD_FILE);
-    return;
-  }
-
-  uint32_t remaining = totalBytes;
-  while (remaining > 0)
-  {
-    const uint32_t chunk =
-      remaining < sizeof(DMABuffer) ? remaining : sizeof(DMABuffer);
-
-    if (LogFile.write((const uint8_t *)DMABuffer, chunk) != chunk)
-    {
-      SendRYLR("PREALLOC FAILED: SD FULL OR WRITE ERROR");
-      LogFile.close();
-      ErrorBlink(ERR_SD_FILE);
-      return;
-    }
-
-    remaining -= chunk;
-  }
-
-  LogFile.flush();
-  LogFile.close();
-
-  // Reopen for overwrite. Leave it open for LogBuffersinLoop().
-  LogFile = SD.open(name, O_RDWR);
-  if (!LogFile || LogFile.size() != totalBytes || !LogFile.seek(0UL))
-  {
-    SendRYLR("PREALLOC FAILED: REOPEN/SEEK");
-    if (LogFile) LogFile.close();
-    ErrorBlink(ERR_SD_FILE);
-    return;
-  }
-
-  // Record 0 is the dummy block expected by ConvertLog().
-  const uint32_t timestamp = micros();
-  if (LogFile.write((const uint8_t *)DMABuffer, LOG_BLOCK_BYTES)
-        != LOG_BLOCK_BYTES ||
-      LogFile.write((const uint8_t *)&timestamp, sizeof(timestamp))
-        != sizeof(timestamp) ||
-      LogFile.size() != totalBytes ||
-      LogFile.position() != LOG_RECORD_BYTES)
-  {
-    SendRYLR("PREALLOC FAILED: DUMMY RECORD");
-    LogFile.close();
-    ErrorBlink(ERR_SD_FILE);
-    return;
-  }
-
-  LogFile.flush();
-  SendRYLR("PREALLOC MS=" + String(millis() - startMs) +
-           " BYTES=" + String(totalBytes));
+  // Select a Fresh Filename for the Binary Logfile
+  GetLogfileName(true);
 }
+
 
 // Coupled ADC DMA Transfer and Logging Trigger
 void TriggerLogging()

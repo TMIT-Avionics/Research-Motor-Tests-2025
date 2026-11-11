@@ -34,7 +34,7 @@
 // See REYAX RYLR993 Datasheet for UART Configuration
 #define RYLR_UART_BAUD 9600UL
 
-#define USE_USB_SERIAL
+// #define USE_USB_SERIAL
 #ifdef USE_USB_SERIAL
 // Redirect RYLR to USB Communications and STLink Serial
 #define RYLR Serial
