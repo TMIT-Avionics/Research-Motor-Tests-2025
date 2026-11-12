@@ -20,7 +20,7 @@ uint16_t ReadoutBuffer[ADC_PARALLEL_CHANNELS];
 
 
 // ADC DMA Buffer Block Length
-// Align Block to SD Card 512 Byte Boundary to Optimise IO
+// Roughly Align to 512 Byte Boundary to Optimise SD Card IO
 #define ADC_DMA_BLOCKLEN (ADC_PARALLEL_CHANNELS * 512)
 
 // Circular DMA Buffer Data Storage Structure
@@ -384,7 +384,28 @@ void ConfigureLogging()
   SDWriteError = false;
 
   // Select a Fresh Filename for the Binary Logfile
-  GetLogfileName(true);
+  const String FileName = GetLogfileName(true);
+
+  // Initialise the Binary Logfile on SD Card
+  // Protect Existing Logfiles from Overwrites
+  if (!SD.exists(FileName))
+  {
+    // Create the Binary Logfile on the FAT Filesystem
+    File LogFile = SD.open(FileName, FILE_WRITE);
+
+    // Write Both Blocks of the Empty DMA Ring Buffer to Logfile
+    LogFile.write((const uint8_t *)SDWriteBlockStart, sizeof(DMABuffer));
+    // Pad Extra Bytes to Account for the Two 4-Byte Frame Timestamps
+    LogFile.write((const uint8_t *)SDWriteBlockStart, 2 * sizeof(uint32_t));
+
+    // Flush to Ensure All FAT Operations on SD Card Complete
+    // Running these Operations After Triggering Logging Causes ERR_SD_BUFF
+    LogFile.flush();
+    LogFile.close();
+  } else {
+    // Abort if Logfile Already Exists
+    ErrorBlink(ERR_SD_FILE);
+  }
 }
 
 
