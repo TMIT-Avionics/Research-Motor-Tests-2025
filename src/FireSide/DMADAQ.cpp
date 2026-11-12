@@ -541,6 +541,19 @@ void ConvertLog(const String &Path)
     // Output Logfile Diagnostics
     SendRYLR("FILENAME: " + String(LogFile.name()));
     SendRYLR("FILESIZE: " + String(LogFile.size()));
+
+    // Avoid Lengthy File Conversions for Logs Larger than 8 MB
+    // Inform GroundSide to Continue Conversion on a PC
+    if (LogFile.size() > 0X7FFFFFUL) {
+      SendRYLR("BINARY LOG EXCEEDS 8 MB");
+
+      SendRYLR("ABORTING CONVERSION ON FIRESIDE");
+      SendRYLR("ATTEMPT CONVERSION ON GROUNDSIDE PC");
+
+      // Close the Logfile and Skip Conversion
+      LogFile.close();
+      return;
+    }
   }
 
   // Copy Logfile Name for CSV File
