@@ -20,7 +20,7 @@ uint16_t ReadoutBuffer[ADC_PARALLEL_CHANNELS];
 
 
 // ADC DMA Buffer Block Length
-// Align Block to SD Card 512 Byte Boundary to Optimise IO
+// Roughly Align to 512 Byte Boundary to Optimise SD Card IO
 #define ADC_DMA_BLOCKLEN (ADC_PARALLEL_CHANNELS * 512)
 
 // Circular DMA Buffer Data Storage Structure
@@ -384,7 +384,28 @@ void ConfigureLogging()
   SDWriteError = false;
 
   // Select a Fresh Filename for the Binary Logfile
-  GetLogfileName(true);
+  const String FileName = GetLogfileName(true);
+
+  // Initialise the Binary Logfile on SD Card
+  // Protect Existing Logfiles from Overwrites
+  if (!SD.exists(FileName))
+  {
+    // Create the Binary Logfile on the FAT Filesystem
+    File LogFile = SD.open(FileName, FILE_WRITE);
+
+    // Write Both Blocks of the Empty DMA Ring Buffer
+    LogFile.write((const uint8_t *)SDWriteBlockStart, sizeof(DMABuffer));
+    // Write Extra Bytes to Account for the Two 4-Byte Timestamps
+    LogFile.write((const uint8_t *)SDWriteBlockStart, 2 * sizeof(uint32_t));
+
+    // Flush to Ensure All FAT Operations on SD Card Complete
+    // Running these Operations After Triggering Logging Causes ERR_SD_BUFF
+    LogFile.flush();
+    LogFile.close();
+  } else {
+    // Abort if Logfile Already Exists
+    ErrorBlink(ERR_SD_FILE);
+  }
 }
 
 
@@ -520,6 +541,19 @@ void ConvertLog(const String &Path)
     // Output Logfile Diagnostics
     SendRYLR("FILENAME: " + String(LogFile.name()));
     SendRYLR("FILESIZE: " + String(LogFile.size()));
+
+    // Avoid Lengthy File Conversions for Logs Larger than 8 MB
+    // Inform GroundSide to Continue Conversion on a PC
+    if (LogFile.size() > 0X7FFFFFUL) {
+      SendRYLR("BINARY LOG EXCEEDS 8 MB");
+
+      SendRYLR("ABORTING CONVERSION ON FIRESIDE");
+      SendRYLR("ATTEMPT CONVERSION ON GROUNDSIDE PC");
+
+      // Close the Logfile and Skip Conversion
+      LogFile.close();
+      return;
+    }
   }
 
   // Copy Logfile Name for CSV File
@@ -567,7 +601,13 @@ void ConvertLog(const String &Path)
     // Read Timestamp from Logfile
     LogFile.read(&EndTime, sizeof(uint32_t));
 
-    // Load Starting Timestamp if Blank
+    // Discard Buffers with a Blank Frame Timestamp
+    if (!EndTime)
+    {
+      continue;
+    }
+
+    // Load Starting Timestamp from First Valid Buffer
     if (!StartTime)
     {
       StartTime = EndTime;

@@ -96,6 +96,10 @@ with open(LogPath, 'rb') as LogFile:
     data = buffer[0:-1]
     TimeStamp = buffer[-1]
 
+    # Discard Buffers with Blank Time Stamps
+    if not TimeStamp:
+      continue
+
     # Load First Time Stamp
     if LastTime == -1:
       LastTime = TimeStamp
