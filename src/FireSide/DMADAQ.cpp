@@ -393,9 +393,9 @@ void ConfigureLogging()
     // Create the Binary Logfile on the FAT Filesystem
     File LogFile = SD.open(FileName, FILE_WRITE);
 
-    // Write Both Blocks of the Empty DMA Ring Buffer to Logfile
+    // Write Both Blocks of the Empty DMA Ring Buffer
     LogFile.write((const uint8_t *)SDWriteBlockStart, sizeof(DMABuffer));
-    // Pad Extra Bytes to Account for the Two 4-Byte Frame Timestamps
+    // Write Extra Bytes to Account for the Two 4-Byte Timestamps
     LogFile.write((const uint8_t *)SDWriteBlockStart, 2 * sizeof(uint32_t));
 
     // Flush to Ensure All FAT Operations on SD Card Complete
@@ -601,7 +601,13 @@ void ConvertLog(const String &Path)
     // Read Timestamp from Logfile
     LogFile.read(&EndTime, sizeof(uint32_t));
 
-    // Load Starting Timestamp if Blank
+    // Discard Buffers with a Blank Frame Timestamp
+    if (!EndTime)
+    {
+      continue;
+    }
+
+    // Load Starting Timestamp from First Valid Buffer
     if (!StartTime)
     {
       StartTime = EndTime;
